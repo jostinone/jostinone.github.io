@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>La cuenca de México, 1519 — Los cinco lagos</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      font-family: system-ui, sans-serif;
+      background: #f4f1ea;
+      color: #1c2b33;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body { display: flex; flex-direction: column; align-items: center; padding: 1rem; gap: .75rem; }
+    #estado {
+      background: #fff; border: 1px solid #ccc; border-radius: 8px;
+      padding: .6rem 1rem; font-size: .95rem; min-width: 320px; max-width: 640px; text-align: center;
+    }
+    #mapa {
+      width: min(92vw, 620px); background: #efe9dd;
+      border: 1px solid #bbb; border-radius: 6px; overflow: hidden;
+    }
+    svg { width: 100%; height: auto; display: block; }
+
+    /* Cuenca seca (cama de los lagos) */
+    .cama-union { fill: #ddd3bd; stroke: #b0a483; stroke-width: 2; }
+    .cama { fill: #d8cdb4; stroke: #9c8f72; stroke-width: 2.5; }
+    /* Agua: crece como globo desde el centro (escala) */
+    .agua {
+      fill: #3d8fb1;
+      transform-box: fill-box; transform-origin: 50% 50%;
+      transform: scale(0.12);
+      transition: transform .55s cubic-bezier(.34,1.2,.64,1);
+    }
+    .lago { cursor: pointer; }
+    .lago.lleno { cursor: default; }
+    .lago:hover .cama { stroke: #3d8fb1; }
+    .isla { fill: #cdc09a; stroke: #6f8f5a; stroke-width: 2; pointer-events: none; }
+    /* Nombre del lago (oculto hasta llenarse) */
+    .nombre-lago {
+      opacity: 0; transition: opacity .6s ease;
+      font-size: 42px; font-weight: 700; font-style: italic; text-anchor: middle;
+      fill: #ffffff; paint-order: stroke; stroke: #14526b; stroke-width: 5px;
+      pointer-events: none;
+    }
+    .nombre-lago.visible { opacity: 1; }
+    /* Unión final: cuerpo de agua completo + delimitaciones detalladas */
+    #agua-union { fill: #3d8fb1; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
+    #detalle {
+      opacity: 0; transition: opacity 1.6s ease .5s;
+      fill: none; stroke: #1d6a8f; stroke-width: 2.2; stroke-opacity: .75;
+      pointer-events: none;
+    }
+    #agua-union.visible, #detalle.visible { opacity: 1; }
+    /* Ciudades 1519 */
+    .ciudad { opacity: 0; transition: opacity .8s ease; pointer-events: none; }
+    .ciudad.visible { opacity: 1; }
+    .ciudad text {
+      font-size: 27px; text-anchor: middle;
+      fill: #2c2417; paint-order: stroke; stroke: #efe9dd; stroke-width: 4px;
+    }
+    .ciudad.principal text { font-size: 34px; font-weight: 700; }
+    .estrella { fill: #b3261e; stroke: #5e100b; stroke-width: 1.5; }
+    #reset {
+      padding: .45rem 1.1rem; border: 1px solid #999; border-radius: 6px;
+      background: #fff; cursor: pointer; font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="estado">Haz clic en un lago para llenarlo de agua. <span id="detalle-estado">Cada lago empieza casi seco: 5 clics para llenarlo.</span></div>
+
+  <div id="mapa">
+    <svg id="svg-mapa" viewBox="0 0 1412 1882" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="clip-union"><path id="clip-union-path"/></clipPath></defs>
+
+      <!-- Cama seca de toda la cuenca -->
+      <path id="cama-union" class="cama-union"/>
+
+      <!-- Agua unificada (aparece al final) -->
+      <path id="agua-union"/>
+
+      <!-- Aquí se inyectan los 5 lagos -->
+      <g id="lagos"></g>
+
+      <!-- Delimitaciones detalladas (diques, canales, costas) -->
+      <g id="detalle" clip-path="url(#clip-union)"></g>
+
+      <!-- Ciudades de 1519 -->
+      <g id="ciudades"></g>
+    </svg>
+  </div>
+
+  <button id="reset">Reiniciar</button>
+
+  <script src="mapa_datos.js"></script>
+  <script>
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const INICIO = 0.12;            // agua inicial (poca)
+    const PASO = 0.88;              // lo que crece con 5 clics
+    const estadoEl = document.getElementById('detalle-estado');
+    let completos = 0, unidos = false;
+
+    // --- cama y unión ---
+    const camaUnion = document.getElementById('cama-union');
+    camaUnion.setAttribute('d', DATOS.union);
+    const aguaUnion = document.getElementById('agua-union');
+    aguaUnion.setAttribute('d', DATOS.union);
+    document.getElementById('clip-union-path').setAttribute('d', DATOS.union);
+
+    // --- delimitaciones detalladas ---
+    const gDetalle = document.getElementById('detalle');
+    DATOS.strokes.forEach(d => {
+      const p = document.createElementNS(svgNS, 'path');
+      p.setAttribute('d', d);
+      gDetalle.appendChild(p);
+    });
+
+    // --- 5 lagos ---
+    const gLagos = document.getElementById('lagos');
+    Object.entries(DATOS.lagos).forEach(([nombre, d]) => {
+      const g = document.createElementNS(svgNS, 'g');
+      g.setAttribute('class', 'lago');
+      g.dataset.lago = nombre;
+
+      const cama = document.createElementNS(svgNS, 'path');
+      cama.setAttribute('class', 'cama');
+      cama.setAttribute('d', d);
+
+      const agua = document.createElementNS(svgNS, 'path');
+      agua.setAttribute('class', 'agua');
+      agua.setAttribute('d', d);
+
+      g.appendChild(cama);
+      g.appendChild(agua);
+
+      // islas del lago (terreno que emerge del agua)
+      if (DATOS.islas[nombre]) {
+        const isl = document.createElementNS(svgNS, 'path');
+        isl.setAttribute('class', 'isla');
+        isl.setAttribute('d', DATOS.islas[nombre]);
+        g.appendChild(isl);
+      }
+
+      const [nx, ny] = DATOS.nombresLago[nombre];
+      const t = document.createElementNS(svgNS, 'text');
+      t.setAttribute('class', 'nombre-lago');
+      t.setAttribute('x', nx); t.setAttribute('y', ny);
+      t.textContent = 'Lago de ' + nombre;
+      g.appendChild(t);
+
+      let nivel = 0;
+      g.addEventListener('click', () => {
+        if (nivel >= 100 || unidos) return;
+        nivel = Math.min(100, nivel + 20);
+        agua.style.transform = `scale(${INICIO + PASO * nivel / 100})`;
+        if (nivel >= 100) {
+          g.classList.add('lleno');
+          t.classList.add('visible');
+          completos++;
+          estadoEl.textContent = `¡El lago de ${nombre} está lleno! (${completos}/5)`;
+          if (completos === 5) setTimeout(unir, 700);
+        } else {
+          estadoEl.textContent = `Lago de ${nombre}: ${nivel} % lleno.`;
+        }
+      });
+
+      gLagos.appendChild(g);
+    });
+
+    // --- ciudades 1519 (ocultas hasta la unión) ---
+    const gCiudades = document.getElementById('ciudades');
+    DATOS.ciudades.forEach((c, i) => {
+      const g = document.createElementNS(svgNS, 'g');
+      g.setAttribute('class', 'ciudad');
+      g.style.transitionDelay = (1.2 + i * 0.12) + 's';
+      if (c.t === 'México-Tenochtitlan') g.classList.add('principal');
+      const t = document.createElementNS(svgNS, 'text');
+      t.setAttribute('x', c.x); t.setAttribute('y', c.y);
+      t.textContent = c.t;
+      g.appendChild(t);
+      gCiudades.appendChild(g);
+    });
+    // estrella de Tenochtitlan
+    const estrella = document.createElementNS(svgNS, 'path');
+    estrella.setAttribute('class', 'estrella');
+    estrella.setAttribute('d', DATOS.estrella);
+    estrella.style.cssText = 'opacity:0;transition:opacity .8s ease 1.2s;pointer-events:none';
+    gCiudades.appendChild(estrella);
+
+    function unir() {
+      unidos = true;
+      estadoEl.textContent = 'Los cinco lagos se unen: aparece la gran laguna de la cuenca.';
+      aguaUnion.classList.add('visible');
+      gDetalle.classList.add('visible');
+      document.querySelectorAll('.ciudad').forEach(c => c.classList.add('visible'));
+      estrella.style.opacity = 1;
+      setTimeout(() => {
+        estadoEl.textContent = 'El Valle de México, 1519: las ciudades alrededor de la gran laguna.';
+      }, 4500);
+    }
+
+    document.getElementById('reset').addEventListener('click', () => location.reload());
+  </script>
+
+</body>
+</html>
