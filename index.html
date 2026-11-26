@@ -40,7 +40,7 @@
     }
     #barra-superior { top: .5rem; }
     #barra-inferior { bottom: max(.75rem, env(safe-area-inset-bottom)); }
-    #reset, #descargar-bibliografia {
+    #reset, #descargar-bibliografia, #pantalla-completa {
       display: none; min-height: 44px; min-width: 44px;
       align-items: center; justify-content: center;
       padding: .5rem 1.4rem; border: 1px solid #8b8068; border-radius: 4px;
@@ -49,11 +49,22 @@
       text-decoration: none; line-height: 1.2;
       pointer-events: auto; transition: background .18s ease-out, transform .18s ease-out;
     }
-    #reset.visible, #descargar-bibliografia.visible { display: inline-flex; }
-    #reset:hover, #descargar-bibliografia:hover { background: #e7dfc8; }
-    #reset:active, #descargar-bibliografia:active { transform: scale(.97); }
-    #reset:focus-visible, #descargar-bibliografia:focus-visible {
+    #reset.visible, #descargar-bibliografia.visible, #pantalla-completa { display: inline-flex; }
+    #reset:hover, #descargar-bibliografia:hover, #pantalla-completa:hover { background: #e7dfc8; }
+    #reset:active, #descargar-bibliografia:active, #pantalla-completa:active { transform: scale(.97); }
+    #reset:focus-visible, #descargar-bibliografia:focus-visible, #pantalla-completa:focus-visible {
       outline: 3px solid #244f63; outline-offset: 3px;
+    }
+    #pantalla-completa {
+      position: fixed; top: .5rem; right: max(.5rem, env(safe-area-inset-right));
+      z-index: 3; gap: .45rem;
+    }
+    #pantalla-completa[hidden] { display: none; }
+    #pantalla-completa:disabled { cursor: default; opacity: .65; }
+    #pantalla-completa svg { width: 18px; height: 18px; flex: 0 0 18px; }
+    @media (max-width: 600px) {
+      #pantalla-completa { width: 44px; padding: .5rem; }
+      #pantalla-completa span { display: none; }
     }
 
     #mapa {
@@ -203,16 +214,22 @@
     @media (prefers-reduced-motion: reduce) {
       .nombre-lago, #agua-union, .detalle-final, .ciudad,
       #islote-tenochtitlan .contorno-islote, .glifo-tenochtitlan,
-      #reset, #descargar-bibliografia { transition: none; }
+      #reset, #descargar-bibliografia, #pantalla-completa { transition: none; }
       .rio.activo .flujo { animation: none; }
       #ficha-tenochtitlan[open] { animation: none; }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-Q07M6KyD.js"></script>
+  <script type="module" crossorigin src="./assets/index-BcAQt7hK.js"></script>
 </head>
 <body>
 
   <div id="barra-superior"><button id="reset">↺ Reiniciar</button></div>
+  <button id="pantalla-completa" type="button" aria-pressed="false" aria-label="Activar pantalla completa">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Pantalla completa</span>
+  </button>
   <div id="barra-inferior">
     <a id="descargar-bibliografia" href="./assets/bibliografiamapacuena.pdf" download="bibliografiamapacuena.pdf">Bibliografia</a>
   </div>
