@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%235aaae2'/%3E%3C/svg%3E" />
+  <title>La cuenca de México, 1519 — Los cinco lagos</title>
+  <style>
+    @font-face {
+      font-family: 'Tinos'; src: url('./assets/Tinos-Regular-Ck7GVqjx.woff2') format('woff2');
+      font-style: normal; font-weight: 400; font-display: swap;
+    }
+    @font-face {
+      font-family: 'Tinos'; src: url('./assets/Tinos-Italic-CK_WMlbJ.woff2') format('woff2');
+      font-style: italic; font-weight: 400; font-display: swap;
+    }
+    @font-face {
+      font-family: 'Tinos'; src: url('./assets/Tinos-Bold-DAzfESMa.woff2') format('woff2');
+      font-style: normal; font-weight: 700; font-display: swap;
+    }
+    @font-face {
+      font-family: 'Tinos'; src: url('./assets/Tinos-BoldItalic-BY1NTMyT.woff2') format('woff2');
+      font-style: italic; font-weight: 700; font-display: swap;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Tinos', 'Times New Roman', 'Liberation Serif', Times, serif;
+      background: #eee9d6;
+      color: #302d24;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    button, a { font-family: inherit; }
+    #barra-superior, #barra-inferior {
+      position: fixed; left: 0; right: 0; z-index: 2;
+      display: flex; justify-content: center; pointer-events: none;
+    }
+    #barra-superior { top: .5rem; }
+    #barra-inferior { bottom: max(.75rem, env(safe-area-inset-bottom)); }
+    #reset, #descargar-bibliografia {
+      display: none; min-height: 44px; min-width: 44px;
+      align-items: center; justify-content: center;
+      padding: .5rem 1.4rem; border: 1px solid #8b8068; border-radius: 4px;
+      background: #f5efdc; cursor: pointer; font-size: .95rem;
+      color: #302d24; box-shadow: 0 2px 8px rgba(75, 62, 40, .16);
+      text-decoration: none; line-height: 1.2;
+      pointer-events: auto; transition: background .18s ease-out, transform .18s ease-out;
+    }
+    #reset.visible, #descargar-bibliografia.visible { display: inline-flex; }
+    #reset:hover, #descargar-bibliografia:hover { background: #e7dfc8; }
+    #reset:active, #descargar-bibliografia:active { transform: scale(.97); }
+    #reset:focus-visible, #descargar-bibliografia:focus-visible {
+      outline: 3px solid #244f63; outline-offset: 3px;
+    }
+
+    #mapa {
+      position: relative; width: 100vw; height: 100vh; height: 100dvh;
+      overflow: hidden; background: #f1ecd9; line-height: 0;
+    }
+    svg { display: block; }
+    #entorno, #svg-mapa { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #entorno { z-index: 0; pointer-events: none; }
+    #svg-mapa { z-index: 1; }
+
+    /* Aportes fluviales: las trayectorias nacen en tierra y terminan en la
+       orilla. La cama lacustre, dibujada después, oculta cualquier tramo
+       interior para conservar intactos los límites del agua. */
+    #rios { pointer-events: none; }
+    .rio .trazo {
+      fill: none; stroke: #6c8580; stroke-width: 3; opacity: .78;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .rio .flujo {
+      fill: none; stroke: #147fa8; stroke-width: 6; opacity: 0;
+      stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 10 16; stroke-dashoffset: 0;
+    }
+    .rio.activo .trazo { stroke: #347f96; opacity: 1; }
+    .rio.activo .flujo { opacity: 1; animation: corriente .65s linear infinite; }
+    .numero-rio {
+      font-size: 20px; font-weight: 600; text-anchor: middle;
+      fill: #425c58; paint-order: stroke; stroke: #efe9dd; stroke-width: 4px;
+    }
+    .rio.activo .numero-rio { fill: #075f82; font-weight: 800; }
+    @keyframes corriente { to { stroke-dashoffset: -26; } }
+
+    #panel-rios { pointer-events: none; }
+    #panel-rios rect { fill: #efe9dd; fill-opacity: .96; stroke: #b0a483; stroke-width: 1.5; }
+    #panel-rios .titulo { font-size: 23px; font-weight: 700; fill: #2c3e3b; }
+    #panel-rios .nombre-rio { font-size: 18px; fill: #3e4d49; }
+    #panel-rios .nombre-rio.activo { fill: #075f82; font-weight: 700; }
+
+    /* Cuenca seca (cama de los lagos) */
+    .cama-union { fill: #ddd3bd; stroke: #b0a483; stroke-width: 2; }
+    .cama { fill: #d8cdb4; stroke: #9c8f72; stroke-width: 2.5; }
+    .agua { fill: #5aaae2; }
+    .agua.dulce { fill: #dfecf9; }
+    .lago { cursor: pointer; }
+    .lago.lleno { cursor: default; }
+    .lago:focus { outline: none; }
+    .lago:focus-visible .cama { stroke: #244f63; stroke-width: 5; }
+    #mapa.unido .lago .cama { stroke: none; }
+
+    .isla { fill: #cdc09a; stroke: #6f8f5a; stroke-width: 2; pointer-events: none; }
+    .nombre-lago {
+      opacity: 0; transition: opacity .6s ease;
+      font-size: 42px; font-weight: 700; font-style: italic; text-anchor: middle;
+      fill: #ffffff; paint-order: stroke; stroke: #14526b; stroke-width: 5px;
+      pointer-events: none;
+    }
+    .nombre-lago.visible { opacity: 1; }
+    .nombre-lago[data-lago="Zumpango"] { font-size: 34px; }
+    #agua-union { fill: #5aaae2; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
+    #agua-union.visible { opacity: 1; }
+
+    .detalle-final {
+      opacity: 0; transition: opacity 1s ease .8s; pointer-events: none;
+    }
+    .detalle-final.visible { opacity: 1; }
+    .agua-mexico { fill: #dfecf9; }
+    .chinampa { fill: #5f9d57; stroke: #467d42; stroke-width: 2; }
+    .terreno-tenochtitlan { fill: #d8cdae; stroke: #467d42; stroke-width: 2; }
+    .dique {
+      fill: none; stroke: #6f7474; stroke-width: 5;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    #leyenda rect.marco { fill: #f1ead7; stroke: #777166; stroke-width: 2; }
+    #leyenda text { font-size: 23px; fill: #2c2417; }
+    #leyenda text.titulo { font-size: 25px; font-weight: 700; }
+    #leyenda .muestra-dique { stroke: #6f7474; stroke-width: 5; }
+
+    .ciudad { opacity: 0; transition: opacity .8s ease; pointer-events: none; }
+    .ciudad.visible { opacity: 1; }
+    .ciudad text {
+      font-size: 27px;
+      fill: #2c2417; paint-order: stroke; stroke: #efe9dd; stroke-width: 4px;
+    }
+    .ciudad.principal text { font-size: 34px; font-weight: 700; }
+    .estrella { fill: #b3261e; stroke: #5e100b; stroke-width: 1.5; }
+
+    /* El islote solo recibe eventos cuando los cinco lagos ya se unieron. */
+    #islote-tenochtitlan { pointer-events: none; }
+    #mapa.unido #islote-tenochtitlan { pointer-events: all; cursor: pointer; }
+    #islote-tenochtitlan:focus { outline: none; }
+    #islote-tenochtitlan .contorno-islote {
+      fill: transparent; stroke: transparent; stroke-width: 14;
+      transition: stroke .15s ease-out;
+    }
+    #mapa.unido #islote-tenochtitlan:hover .contorno-islote,
+    #mapa.unido #islote-tenochtitlan:active .contorno-islote {
+      stroke: rgba(70, 125, 66, .45);
+    }
+    #islote-tenochtitlan:focus-visible .contorno-islote {
+      stroke: #244f63; stroke-width: 5;
+    }
+    .glifo-tenochtitlan {
+      opacity: 0; transition: opacity .2s ease-out; pointer-events: none;
+      filter: drop-shadow(0 3px 2px rgba(28, 43, 51, .35));
+    }
+    .glifo-tenochtitlan.visible,
+    #mapa.unido #islote-tenochtitlan:hover .glifo-tenochtitlan,
+    #mapa.unido #islote-tenochtitlan:focus-visible .glifo-tenochtitlan { opacity: 1; }
+
+    #ficha-tenochtitlan {
+      width: min(440px, calc(100vw - 32px));
+      max-height: calc(100dvh - 32px);
+      margin: 16px; padding: 0; overflow: auto;
+      border: 1px solid #8c8475; border-radius: 10px;
+      background: #f1ead7; color: #1c2b33;
+      box-shadow: 0 16px 48px rgba(20, 31, 36, .3);
+      user-select: text; -webkit-user-select: text;
+    }
+    #ficha-tenochtitlan::backdrop { background: rgba(20, 31, 36, .58); }
+    #ficha-tenochtitlan[open] { animation: aparecer-ficha .18s ease-out; }
+    @keyframes aparecer-ficha {
+      from { opacity: 0; transform: scale(.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .encabezado-ficha {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 12px 12px 8px 20px;
+    }
+    .encabezado-ficha h2 { font-size: 1.35rem; line-height: 1.25; }
+    #cerrar-ficha {
+      display: grid; place-items: center; flex: 0 0 44px;
+      width: 44px; height: 44px; border: 0; border-radius: 6px;
+      background: transparent; color: #1c2b33; cursor: pointer;
+    }
+    #cerrar-ficha:hover { background: #e5e0d6; }
+    #cerrar-ficha:focus-visible { outline: 3px solid #244f63; outline-offset: 2px; }
+    .imagen-codice { margin: 0 20px; background: #efe9dd; border: 1px solid #c3b9a6; }
+    .imagen-codice img {
+      display: block; width: 100%; height: auto; max-height: 42dvh;
+      object-fit: contain;
+    }
+    .texto-ficha { padding: 16px 20px 20px; }
+    .texto-ficha p { font-size: 1rem; line-height: 1.6; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .nombre-lago, #agua-union, .detalle-final, .ciudad,
+      #islote-tenochtitlan .contorno-islote, .glifo-tenochtitlan,
+      #reset, #descargar-bibliografia { transition: none; }
+      .rio.activo .flujo { animation: none; }
+      #ficha-tenochtitlan[open] { animation: none; }
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-Q07M6KyD.js"></script>
+</head>
+<body>
+
+  <div id="barra-superior"><button id="reset">↺ Reiniciar</button></div>
+  <div id="barra-inferior">
+    <a id="descargar-bibliografia" href="./assets/bibliografiamapacuena.pdf" download="bibliografiamapacuena.pdf">Bibliografia</a>
+  </div>
+
+  <div id="mapa">
+    <svg id="entorno" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+    <svg id="svg-mapa" viewBox="0 0 1412 1882" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-label="Mapa interactivo de los cinco lagos de la cuenca de México en 1519">
+      <!-- Los 21 ríos se dibujan debajo de la cama lacustre. -->
+      <g id="rios"></g>
+
+      <path id="cama-union" class="cama-union"/>
+      <path id="agua-union"/>
+      <g id="lagos"></g>
+      <g id="detalles-finales" class="detalle-final"></g>
+      <!-- Los islotes permanecen sobre el agua, pero nunca tapan los nombres. -->
+      <g id="islotes"></g>
+      <g id="nombres-lagos"></g>
+      <g id="ciudades"></g>
+
+      <g id="leyenda" class="detalle-final" aria-label="Referencias del mapa">
+        <rect class="marco" x="1120" y="90" width="250" height="225" rx="4"/>
+        <text class="titulo" x="1148" y="133">Referencias</text>
+        <rect x="1148" y="157" width="34" height="22" fill="#5aaae2" stroke="#427fa7"/>
+        <text x="1196" y="175">Agua salada</text>
+        <rect x="1148" y="196" width="34" height="22" fill="#dfecf9" stroke="#9aadb9"/>
+        <text x="1196" y="214">Agua dulce</text>
+        <rect x="1148" y="235" width="34" height="22" fill="#5f9d57" stroke="#467d42"/>
+        <text x="1196" y="253">Chinampas</text>
+      </g>
+
+      <g id="panel-rios" aria-label="Nombres de los 21 aportes fluviales">
+        <rect x="1160" y="400" width="230" height="585" rx="4"/>
+        <text class="titulo" x="1178" y="435">Aportes fluviales</text>
+      </g>
+    </svg>
+  </div>
+
+  <dialog id="ficha-tenochtitlan" aria-labelledby="titulo-ficha" aria-describedby="contexto-ficha">
+    <div class="encabezado-ficha">
+      <h2 id="titulo-ficha">Tenochtitlan</h2>
+      <button id="cerrar-ficha" type="button" aria-label="Cerrar ficha de Tenochtitlan">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <figure class="imagen-codice">
+      <img src="./assets/codice-tenochtitlan-BXJQ65Gd.png" alt="Folio del Códice Mendocino con el águila sobre el nopal, las franjas de agua y los cuatro cuadrantes de Tenochtitlan" />
+    </figure>
+    <div class="texto-ficha">
+      <p id="contexto-ficha">El folio 2r del Códice Mendocino representa la fundación de México-Tenochtitlan mediante el águila posada sobre el nopal. Las franjas azules aluden a los canales y al lago de Texcoco, mientras que la división en cuatro cuadrantes organiza simbólicamente la ciudad.</p>
+
+    </div>
+  </dialog>
+
+
+</body>
+</html>
